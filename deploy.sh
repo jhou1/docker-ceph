@@ -11,3 +11,8 @@ ceph-deploy admin ${HOSTNAME} ${CEPH_CLUSTER_DIR}
 
 chmod 644 /etc/ceph/ceph.client.admin.keyring
 ceph health
+
+while true
+do
+    sleep 30
+done
