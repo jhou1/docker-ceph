@@ -9,6 +9,8 @@ docker build .
 
 ## Run the pod as a Ceph server
 
+The Ceph server needs to run as privileged container, so before you start, you need to update OpenShift SCC to allow privileged containers, also you need to set the type of `runAsUser` to `RunAsAny` so that the init.sh could have access to deploy ceph.
+
 1. Create the Ceph server pod, run `oc create -f ceph.json`
 
 2. After pod is up and running, run `oc exec ceph-server ceph health`, you should see **HEALTH_OK**, that means ceph server is funcional. You may need to wait for a while before you see the result because it might take some time for the pod to finish deploying Ceph. After Ceph is deployed, a default `disk01` image will be created.
