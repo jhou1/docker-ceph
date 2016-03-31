@@ -19,4 +19,4 @@ The Ceph server needs to run as privileged container, so before you start, you n
 
 4. Create secret, run `oc create -f rbd-secret.yaml`
 
-5. Create the pod that has rbd mount. Once the pod is created, you can able to verify the mount directory is operational.
+5. Create the pod that has rbd mount, run `oc create -f pod.json`. Once the pod is created, you can able to verify the mount directory is operational.
