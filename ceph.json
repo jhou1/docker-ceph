@@ -5,19 +5,12 @@
         "name": "ceph-server"
     },
     "spec": {
-        "hostNetwork": true,
+        "hostNetwork": false,
         "containers": [
             {
                 "name": "ceph-server",
                 "image": "jhou/ceph",
-                "ports": [
-                    {
-                        "containerPort": 6789,
-                        "protocol": "TCP"
-                    }
-                ],
                 "securityContext": {
-                    "hostNetwork": true,
                     "privileged": true
                 },
                 "volumeMounts": [
@@ -28,12 +21,7 @@
                     {
                         "mountPath": "/dev",
                         "name": "dev"
-                    },
-                    {
-                        "mountPath": "/lib/modules",
-                        "name": "kernel"
                     }
-
                 ],
                 "imagePullPolicy": "IfNotPresent"
             }
@@ -49,12 +37,6 @@
                  "name": "dev",
                  "hostPath": {
                      "path": "/dev"
-                 }
-            },
-            {
-                 "name": "kernel",
-                 "hostPath": {
-                     "path": "/lib/modules"
                  }
             }
         ]
