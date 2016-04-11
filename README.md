@@ -15,3 +15,14 @@ The Ceph server needs to run as privileged container, so before you start, you n
 5. Run `oc get pod ceph-server | grep podIP`, the output this the IP of the pod inside the OpenShift cluster, update `pod.json` replace the host IP of `monitor` with your value.
 
 6. Create the pod that has rbd mount, run `oc create -f pod.json`. Once the pod is created, you can able to verify the mount directory is operational.
+
+TODO:
+
+Can not run `rbd map`, got error:
+
+```
+rbd: sysfs write failed
+rbd: map failed: (22) Invalid argument
+```
+
+Need fix or work around
