@@ -1,12 +1,5 @@
 Ceph server container for OpenShift.
 
-## Build the image
-
-```
-cd docker-ceph
-docker build .
-```
-
 ## Run the pod as a Ceph server
 
 The Ceph server needs to run as privileged container, so before you start, you need to update OpenShift SCC to allow privileged containers, also you need to set the type of `runAsUser` to `RunAsAny` so that the init.sh could have access to deploy ceph.
