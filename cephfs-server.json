@@ -15,7 +15,7 @@
         "containers": [
             {
                 "name": "cephfs-server",
-                "image": "jhou/ceph",
+                "image": "aosqe/ceph",
                 "imagePullPolicy": "IfNotPresent",
                 "securityContext": {
                     "privileged": true
