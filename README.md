@@ -1,28 +1,34 @@
-Ceph server container for OpenShift.
+CephFS server pod for OpenShift testing.
 
-## Run the pod as a Ceph server
+# Making CephFS server docker image
+Copied from https://github.com/kubernetes/kubernetes/tree/master/test/images/volumes-tester/ceph. Made a few changes to meet our testing requirements.
 
-The Ceph server needs to run as privileged container, so before you start, you need to update OpenShift SCC to allow privileged containers, also you need to set the type of `runAsUser` to `RunAsAny` so that the init.sh could have access to deploy ceph.
-
-1. Create the Ceph server pod, run `oc create -f ceph.json`
-
-2. After pod is up and running, run `oc exec ceph-server ceph health`, you should see **HEALTH_OK**, that means ceph server is funcional. You may need to wait for a while before you see the result because it might take some time for the pod to finish deploying Ceph. After Ceph is deployed, a default `disk01` image will be created.
-
-3. Get the base64 encoded keyring, run `oc exec ceph-server -- ceph-authtool -p /etc/ceph/ceph.client.admin.keyring | base64`, use the output as value of `key: ` in the rbd-secret.yaml
-
-4. Create secret, run `oc create -f rbd-secret.yaml`
-
-5. Run `oc get pod ceph-server | grep podIP`, the output this the IP of the pod inside the OpenShift cluster, update `pod.json` replace the host IP of `monitor` with your value.
-
-6. Create the pod that has rbd mount, run `oc create -f pod.json`. Once the pod is created, you can able to verify the mount directory is operational.
-
-TODO:
-
-Can not run `rbd map`, got error:
+# Creating CephFS server pod
+Edit `scc.yml`, replace `YOUR_USERNAME` with your login name, then:
 
 ```
-rbd: sysfs write failed
-rbd: map failed: (22) Invalid argument
+oc create -f scc.yml
+oc create -f cephfs-server.json
+oc create -f cephfs-secret.yml
 ```
 
-Need fix or work around
+## Verifying your CephFS server is functional
+
+Run `oc exec cephfs-server -- ceph health`, when you see **HEALTH_OK**, your server pod is ready. If you haven't seen it, wait a short time until it is successfully deployed.
+
+# Creating Persistent Volume and Claim
+Run `oc get pod cephfs-server -o yaml | grep podIP`, the ip of the pod is then used for you to access the cephfs server.
+
+Assume your service ip is `10.1.0.1`
+
+```
+sed -i s/#POD_IP#/10.1.0.1/ pv-rwo.json
+oc create -f pv-rwo.json
+oc create -f pvc-rwo.json
+```
+
+Run `oc get pv;oc get pvc`, you should see them Bound together.
+
+# Creating tester pod
+
+Create the pod: `oc create -f pod.json`, then run `oc get pods`, you should see the pod is `Running`.

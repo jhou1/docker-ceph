@@ -1,0 +1,36 @@
+{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "name": "cephfs-server",
+        "labels": {
+            "storage": "cephfs-server"
+        }
+    },
+    "spec": {
+        "hostNetwork": true,
+        "selector": {
+            "role": "cephfs-server"
+        },
+        "containers": [
+            {
+                "name": "cephfs-server",
+                "image": "jhou/ceph",
+                "imagePullPolicy": "IfNotPresent",
+                "securityContext": {
+                    "privileged": true
+                },
+                "readinessProbe": {
+                    "exec": {
+                        "command": [
+                            "ceph",
+                            "health"
+                        ]
+                    },
+                    "initialDelaySeconds": 30,
+                    "timeoutSeconds": 1
+                }
+            }
+        ]
+    }
+}

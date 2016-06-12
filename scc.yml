@@ -6,15 +6,13 @@ allowHostPorts: true
 allowPrivilegedContainer: true
 allowedCapabilities:
 - SYS_MODULE
-- SYS_ADMIN
 apiVersion: v1
 defaultAddCapabilities:
 - SYS_MODULE
-- SYS_ADMIN
 fsGroup:
   type: RunAsAny
 users:
-- USERNAME
+- jhou@redhat.com
 kind: SecurityContextConstraints
 metadata:
   annotations:
@@ -35,4 +33,4 @@ seLinuxContext:
 supplementalGroups:
   type: RunAsAny
 volumes:
-- persistentVolumeClaim
+- "*"

@@ -1,85 +1,96 @@
 #!/bin/bash
 
-HOSTNAME=ceph-mon
-INTERNAL_IP=`hostname -i`
-HOME_DIR=/home/ceph
-SSH_KEY_DIR=${HOME_DIR}/.ssh
-RNG=`uuidgen -r | cut -d '-' -f 5`
-CEPH_CLUSTER_DIR=/root/ceph-cluster
+# Copyright 2015 The Kubernetes Authors All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-set_hostname() {
-    # Can not use hostnamectl due to https://github.com/docker/docker/issues/7459
-    echo ${HOSTNAME} > /etc/hostname
-    hostname ${HOSTNAME}
-}
+#set -e
+set -x
 
+# clean up
+rm -f /etc/ceph/*
 
-set_passwordless() {
-    # Configure user
-    useradd -d /home/ceph -m ceph -p ${RNG}
-    echo "ceph ALL = (root) NOPASSWD:ALL\nDefaults:ceph !requiretty\n" >> /etc/sudoers
+pkill -9 ceph-mon
+pkill -9 ceph-osd
+pkill -9 ceph-mds
 
-    # Configure ssh
-    mkdir /home/ceph/.ssh
-    ssh-keygen -f ${SSH_KEY_DIR}/id_rsa -P ${RNG}
-    echo "Host ${HOSTNAME}\n\tHostname ${HOSTNAME}\n\tUser ceph\n\tIdentityFile ${SSH_KEY_DIR}/id_rsa" >> /etc/ssh/ssh_config
-    cat ${SSH_KEY_DIR}/id_rsa.pub > ${SSH_KEY_DIR}/.authorized_keys
-}
+mkdir -p /var/lib/ceph
+mkdir -p /var/lib/ceph/osd
+mkdir -p /var/lib/ceph/osd/ceph-0
 
+# create hostname for ceph monitor
+MASTER=`hostname -s`
 
-deploy_ceph() {
-    mkdir /storage01 /storage02 /storage03 ${CEPH_CLUSTER_DIR}
-    cd ${CEPH_CLUSTER_DIR}
+ip=$(ip -4 -o a | grep eth0 | awk '{print $4}' | cut -d'/' -f1)
+echo "$ip $MASTER" >> /etc/hosts
 
-    # Add ip and hostname mapping to /etc/hosts
-    echo "${INTERNAL_IP} ${HOSTNAME}" >> /etc/hosts
+#create ceph cluster
+ceph-deploy --overwrite-conf new ${MASTER}  
+ceph-deploy --overwrite-conf mon create-initial ${MASTER}
+ceph-deploy --overwrite-conf mon create ${MASTER}
+ceph-deploy  gatherkeys ${MASTER}  
 
-    # Create new deployment
-    ceph-deploy new ${HOSTNAME}
+# set osd  params for minimal configuration
+echo "osd crush chooseleaf type = 0" >> /etc/ceph/ceph.conf
+echo "osd journal size = 100" >> /etc/ceph/ceph.conf
+echo "osd pool default size = 1" >> /etc/ceph/ceph.conf
+echo "osd pool default pgp num = 8" >> /etc/ceph/ceph.conf
+echo "osd pool default pg num = 8" >> /etc/ceph/ceph.conf
 
-    # Set osd_crush_chooseleaf_type for one-node ceph
-    echo "osd_crush_chooseleaf_type = 0" >> ${CEPH_CLUSTER_DIR}/ceph.conf
+/sbin/service ceph -c /etc/ceph/ceph.conf stop mon.${MASTER}
+/sbin/service ceph -c /etc/ceph/ceph.conf start mon.${MASTER}
 
-    ceph-deploy mon create-initial
+# create ceph osd
+ceph osd create
+ceph-osd -i 0 --mkfs --mkkey
+ceph auth add osd.0 osd 'allow *' mon 'allow rwx' -i /var/lib/ceph/osd/ceph-0/keyring
+ceph osd crush add 0 1 root=default host=${MASTER}
+ceph-osd -i 0 -k /var/lib/ceph/osd/ceph-0/keyring
 
-    # Prepare and activate storage
-    ceph-deploy osd prepare ${HOSTNAME}:/storage01 ${HOSTNAME}:/storage02 ${HOSTNAME}:/storage03
-    ceph-deploy osd activate ${HOSTNAME}:/storage01 ${HOSTNAME}:/storage02 ${HOSTNAME}:/storage03
+#see if we are ready to go  
+ceph osd tree  
 
-    # Gather keys
-    ceph-deploy admin ${HOSTNAME}
+# create ceph fs
+ceph osd pool create cephfs_data 4
+ceph osd pool create cephfs_metadata 4
+ceph fs new cephfs cephfs_metadata cephfs_data
+# set replicas to 1 to work around health_warn
+ceph osd pool set cephfs_data size 1
+ceph osd pool set rbd size 1
+ceph-deploy --overwrite-conf mds create ${MASTER}
 
-    chmod 644 /etc/ceph/ceph.client.admin.keyring
-    ceph health
+# uncomment the following for rbd test
+# ceph osd pool create kube 4
+# rbd create foo --size 10 --pool kube
 
-}
+ps -ef |grep ceph
+ceph osd dump
 
-create_img() {
-    rbd create disk01 --size 5120
-    rbd ls -l
-    rbd map disk01
-    rbd showmapped
-}
+# add new client with a pre defined keyring
+# this keyring must match the ceph secret in e2e test
+cat > /etc/ceph/ceph.client.kube.keyring <<EOF
+[client.kube]
+        key = AQAMgXhVwBCeDhAA9nlPaFyfUSatGD4drFWDvQ==
+        caps mds = "allow rwx"
+        caps mon = "allow rwx"
+        caps osd = "allow rwx"
+EOF
+ceph auth import -i /etc/ceph/ceph.client.kube.keyring
 
-wait_for_health_ok() {
-    ok=false
-    while [ ${ok} != true ]
-    do
-        sleep 10
-        ceph health | grep HEALTH_OK
-        [ $? == 0 ] && ok=true
-    done
-}
+# mount it through ceph-fuse and copy file to ceph fs
+ceph-fuse -m ${MASTER}:6789 /mnt
+cp /tmp/index.html /mnt
+chmod 644 /mnt/index.html
 
-set_hostname
-set_passwordless
-deploy_ceph
-
-# Once ceph is healthy, create image
-wait_for_health_ok
-create_img
-
-while true
-do
-    sleep 30
-done
+# watch
+ceph -w
