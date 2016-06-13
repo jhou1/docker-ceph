@@ -18,11 +18,7 @@
             }]
         }],
         "securityContext": {
-            "runAsUser": 101010,
-            "fsGroup": 123456,
-            "seLinuxOptions": {
-                "level": "s0:c13,c2"
-            }
+            "privileged": true
         },
         "volumes": [{
             "name": "cephfs",

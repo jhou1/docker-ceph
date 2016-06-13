@@ -18,11 +18,7 @@
             }
         ],
         "securityContext": {
-            "runAsUser": 1000160000,
-            "fsGroup": 123456,
-            "seLinuxOptions": {
-                "level": "s0"
-            }
+            "privileged": true
         },
         "volumes": [
             {
