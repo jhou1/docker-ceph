@@ -29,7 +29,7 @@
                 "name": "cephfs",
                 "cephfs": {
                     "monitors": ["#POD_IP#:6789"],
-                    "user": "admin",
+                    "user": "kube",
                     "secretRef": {
                         "name": "cephfs-secret"
                     },
